@@ -36,7 +36,9 @@ static bool tp_stub_is_valid_access(int off, int size,
 {
 	if (type != BPF_READ)
 		return false;
-	if (off < 0 || off + size > 2048)
+	if (size <= 0 || size > sizeof(__u64))
+		return false;
+	if (off < 0 || off > 2048 - size)
 		return false;
 	if (off % size != 0)
 		return false;

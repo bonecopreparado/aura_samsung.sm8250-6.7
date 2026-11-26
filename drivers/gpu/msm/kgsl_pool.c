@@ -371,7 +371,7 @@ int kgsl_pool_alloc_page(int *page_size, struct page **pages,
 	}
 
 done:
-	if (e404_data.kgsl_skip_zeroing == 0)
+	if (READ_ONCE(e404_data.kgsl_skip_zeroing) == 0)
 		kgsl_zero_page(page, order, dev);
 
 	for (j = 0; j < (*page_size >> PAGE_SHIFT); j++) {

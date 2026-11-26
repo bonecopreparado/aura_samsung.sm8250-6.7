@@ -10,7 +10,7 @@ int release_value[MAX_RES_COUNT];
 
 #define MHZ_TO_BPS(mhz, w) ((uint64_t)mhz * 1000 * 1000 * w)
 #define CEILING_POS(X) ((X-(uint64_t)(X)) > 0 ? (uint64_t)(X+1) : (uint64_t)(X))
-#define BPS_TO_MHZ(BPS, W) (CELIING_POS((BPS / 1000 / 1000 / W)))
+#define BPS_TO_MHZ(BPS, W) (CEILING_POS((BPS / 1000 / 1000 / W)))
 
 #if defined(CONFIG_ARCH_KONA)
 #define NUM_BUS_TABLE 13
@@ -87,8 +87,7 @@ int trans_freq_to_idx(int request_ddr_freq) {
 void ib_set_booster(int* qos_values)
 {
 	int value = -1;
-	int ddr_new_value = 0;
-	int res_type =0;
+	int res_type = 0;
 
 	for(res_type = 0; res_type < MAX_RES_COUNT; res_type++) {
 		value = qos_values[res_type];
@@ -119,7 +118,6 @@ void ib_release_booster(long *rel_flags)
 {
 	//cpufreq : -1, ddrfreq : 0, HMP : 0, lpm_bias = 0
 	int flag;
-	int ddr_new_value = 0;
 	int value;
 	int res_type = 0;
 
@@ -169,7 +167,10 @@ void input_booster_init_vendor(int* release_val)
 
 void input_booster_exit_vendor(void)
 {
-	//msm_bus_scale_unregister_client(bus_hdl);
+	if (bus_hdl) {
+		msm_bus_scale_unregister_client(bus_hdl);
+		bus_hdl = 0;
+	}
 	pm_qos_remove_request(&lpm_bias_pm_qos_request);
 }
 

@@ -1166,7 +1166,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 		task->signal->oom_score_adj_min = (short)oom_adj;
 	trace_oom_score_adj_update(task);
 	if (oom_adj >= 700)
-		strncpy(task_comm, task->comm, TASK_COMM_LEN);
+		strscpy(task_comm, task->comm, sizeof(task_comm));
 
 	if (mm) {
 		struct task_struct *p;
@@ -1193,21 +1193,19 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 	}
 err_unlock:
 	mutex_unlock(&oom_adj_mutex);
-	put_task_struct(task);
-	/* Choke fuckass apps from background */
-	if (!err && oom_adj >= 700) {
-		if (e404_comm_blocked(task->comm)) {
-			struct task_kill_info *kinfo;
+	/* Choke background apps on blocklist */
+	if (!err && oom_adj >= 700 && e404_comm_blocked(task_comm)) {
+		struct task_kill_info *kinfo;
 
-			kinfo = kmalloc(sizeof(*kinfo), GFP_KERNEL);
-			if (kinfo) {
-				get_task_struct(task);
-				kinfo->task = task;
-				INIT_WORK(&kinfo->work, proc_kill_task);
-				schedule_work(&kinfo->work);
-			}
+		kinfo = kmalloc(sizeof(*kinfo), GFP_KERNEL);
+		if (kinfo) {
+			kinfo->task = task;
+			INIT_WORK(&kinfo->work, proc_kill_task);
+			schedule_work(&kinfo->work);
+			return err;
 		}
 	}
+	put_task_struct(task);
 	return err;
 }
 
