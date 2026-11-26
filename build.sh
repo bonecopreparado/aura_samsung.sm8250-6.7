@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
 SECONDS=0 # builtin bash timer
 
 GREEN='\033[0;32m'
@@ -5,6 +8,8 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
+
+DEVICE="${DEVICE:-r8q}"
 
 # ===== AnyKernel3 =====
 AK3_REPO="https://github.com/Lazy-Encrypted/AnyKernel3"
