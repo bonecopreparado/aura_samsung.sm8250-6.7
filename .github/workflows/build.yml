@@ -133,15 +133,14 @@ jobs:
           echo "BUILD_DATE=$(date +'%d %B %Y')" >> $GITHUB_ENV
           echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "CLANG_VERSION=$(${{ github.workspace }}/tc/clang/bin/clang --version | head -n1)" >> $GITHUB_ENV
-          KSU_VERSION=$(grep -m1 'KSU_VERSION' -r ./KernelSU/kernel/Makefile 2>/dev/null | sed -E 's/.*KSU_VERSION=([0-9]+).*/\1/' || true)
-          [ -z "$KSU_VERSION" ] && KSU_VERSION="Unknown"
+          KSU_VERSION=$(grep -m1 -oE 'KSU_VERSION=[0-9]+' out/drivers/kernelsu/.ksu.o.cmd 2>/dev/null | cut -d= -f2 || true)
+          [ -z "$KSU_VERSION" ] && KSU_VERSION="SukiSU-Nova (UAPI v6)"
           echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV
-          git -C KernelSU fetch --tags 2>/dev/null || true
-          KSU_VERSION_STR=$(git -C KernelSU describe --tags --always 2>/dev/null || true)
+          KSU_VERSION_STR=$(grep -m1 -oE 'KSU_VERSION_FULL=\\"[^\\"]+\\"' out/drivers/kernelsu/.ksu.o.cmd 2>/dev/null | sed -E 's/.*\\"([^\\"]+)\\"/\1/' || git -C KernelSU rev-parse --short HEAD 2>/dev/null || true)
           [ -z "$KSU_VERSION_STR" ] && KSU_VERSION_STR="Unknown"
           echo "KSU_VERSION_STR=$KSU_VERSION_STR" >> $GITHUB_ENV
           SUSFS_VERSION=$(grep -m1 'SUSFS_VERSION' ./include/linux/susfs.h 2>/dev/null | awk -F'"' '{print $2}' || true)
-          [ -z "$SUSFS_VERSION" ] && SUSFS_VERSION="Unknown"
+          [ -z "$SUSFS_VERSION" ] && SUSFS_VERSION="None"
           echo "SUSFS_VERSION=$SUSFS_VERSION" >> $GITHUB_ENV
 
       - name: Debug ZIP
@@ -151,12 +150,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: aura_kernel ${{ env.KERNEL_VERSION }} for ${{ env.DEVICE_NAME }}
+          name: aura_kernel 6.7.0 (${{ env.KERNEL_VERSION }}) for ${{ env.DEVICE_NAME }}
           files: ${{ env.zip_file }}
           body: |
              Clang version: ${{ env.CLANG_VERSION }}
              Build Date: ${{ env.BUILD_DATE }}
-             KernelSU version: ${{ env.KSU_VERSION }} / ${{ env.KSU_VERSION_STR }}
+             SukiSU-Nova version: ${{ env.KSU_VERSION }} / ${{ env.KSU_VERSION_STR }}
              SusFS version: ${{ env.SUSFS_VERSION }}
              SELinux: Enforcing
              Commit: ${{ env.COMMIT_HASH }}
