@@ -1155,8 +1155,8 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 			return -EINVAL;
 
 		if (task_controls_frequencies(current) &&
-		    (!strcmp(sunaddr->sun_path, "/dev/socket/logdw") ||
-		    strcmp(sunaddr->sun_path, "/dev/socket/logd")))
+		    (!strncmp(sunaddr->sun_path, "/dev/socket/logdw", alen) ||
+		     !strncmp(sunaddr->sun_path, "/dev/socket/logd", alen)))
 			return -EINVAL;
 
 		if (test_bit(SOCK_PASSCRED, &sock->flags) &&

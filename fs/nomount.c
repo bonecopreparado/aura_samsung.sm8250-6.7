@@ -1329,7 +1329,7 @@ static int nm_process_payload(unsigned long user_addr)
     }
 
     payload->status = 0;
-    buf_ptr = payload->buffer + payload->arg1;
+    buf_ptr = payload->buffer;
     buf_end = payload->buffer + (payload->data_size > sizeof(payload->buffer) ? sizeof(payload->buffer) : payload->data_size);
 
     switch (payload->cmd) {
@@ -1338,7 +1338,11 @@ static int nm_process_payload(unsigned long user_addr)
             break;
 
         case NM_CMD_ADD_RULE:
-            if (payload->data_size > sizeof(payload->buffer)) { payload->status = -EINVAL; break; }
+            if (payload->data_size > sizeof(payload->buffer) || payload->arg1 > payload->data_size) {
+                payload->status = -EINVAL;
+                break;
+            }
+            buf_ptr = payload->buffer + payload->arg1;
             while (buf_ptr + sizeof(struct nm_rule_hdr) <= buf_end) {
                 struct nm_rule_hdr *h = (void *)buf_ptr;
                 if ((buf_ptr += sizeof(*h)) + h->v_len + h->r_len > buf_end || unlikely(h->v_len >= PATH_MAX || h->r_len >= PATH_MAX)) break;
@@ -1350,7 +1354,11 @@ static int nm_process_payload(unsigned long user_addr)
 
         case NM_CMD_DEL_RULE: {
             HLIST_HEAD(r_victims);    
-            if (payload->data_size > sizeof(payload->buffer)) { payload->status = -EINVAL; break; }
+            if (payload->data_size > sizeof(payload->buffer) || payload->arg1 > payload->data_size) {
+                payload->status = -EINVAL;
+                break;
+            }
+            buf_ptr = payload->buffer + payload->arg1;
             down_write(&nomount_rwsem);
             while (buf_ptr + sizeof(struct nm_del_hdr) <= buf_end) {
                 struct nm_del_hdr *h = (void *)buf_ptr;
@@ -1420,13 +1428,20 @@ static int nm_process_payload(unsigned long user_addr)
         case NM_CMD_GET_UIDS: {
             u32 *out = (u32 *)payload->buffer;
             int count = 0;
-            if (static_branch_unlikely(&nomount_active_uids)) {
+            int next_id = (int)payload->arg1;
+            if (next_id >= 0 && static_branch_unlikely(&nomount_active_uids)) {
                 rcu_read_lock();
-                while (count < sizeof(payload->buffer)/4 && idr_get_next(&nomount_uid_idr, &payload->arg1))
-                    out[count++] = payload->arg1++;
+                while (count < (int)(sizeof(payload->buffer) / sizeof(u32)) &&
+                       idr_get_next(&nomount_uid_idr, &next_id)) {
+                    out[count++] = (u32)next_id;
+                    if (next_id == INT_MAX)
+                        break;
+                    next_id++;
+                }
                 rcu_read_unlock();
             }
-            payload->data_size = count * 4;
+            payload->arg1 = (u32)next_id;
+            payload->data_size = count * sizeof(u32);
             break;
         }
     }

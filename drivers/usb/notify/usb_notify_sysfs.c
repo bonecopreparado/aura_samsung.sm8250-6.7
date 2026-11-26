@@ -889,7 +889,7 @@ static ssize_t usb_sl_store(
 	unsigned long secure_lock = 0;
 	int sret = -EINVAL;
 	size_t ret = -ENOMEM;
-	char input_str[25];
+	char input_str[25] = { 0 };
 	int i;
 
 	if (udev == NULL) {
@@ -904,7 +904,7 @@ static ssize_t usb_sl_store(
 	if (is_sunny) {
 		sret = sscanf(buf, "%24s", input_str);
 		if (sret != 1) {
-			pr_err("%s invalid input (%s)-\n", __func__, input_str);
+			pr_err("%s invalid input\n", __func__);
 			goto error;
 		}
 

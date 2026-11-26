@@ -158,7 +158,7 @@ static inline pte_t set_pte_bit(pte_t pte, pgprot_t prot)
 static inline pte_t pte_mkwrite(pte_t pte)
 {
 	pte = set_pte_bit(pte, __pgprot(PTE_WRITE));
-	if (e404_data.avoid_dirty_pte == 1) {
+	if (READ_ONCE(e404_data.avoid_dirty_pte) == 1) {
 		if (pte_sw_dirty(pte))
 			pte = clear_pte_bit(pte, __pgprot(PTE_RDONLY));
 	} else {

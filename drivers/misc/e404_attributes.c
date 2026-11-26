@@ -1,14 +1,16 @@
 // E404 kernel helper by Project 113 (kvsnr113)
 
 #include <linux/e404_attributes.h>
+#include <linux/rwlock.h>
 
 struct e404_attributes e404_data = {
     .kgsl_skip_zeroing          = 0,
     .file_sync                  = 1,
-    .avoid_dirty_pte = 1,
+    .avoid_dirty_pte            = 1,
     .bg_blocklist               = "com.shopee.id,com.lazada.android,com.tokopedia.tkpd",
 };
 
+static DEFINE_RWLOCK(e404_blocklist_lock);
 static int  blocked_cnt;
 static u8   blocked_len[E404_MAX_BLOCKED];
 static char blocked[E404_MAX_BLOCKED][TASK_COMM_LEN];
@@ -17,62 +19,89 @@ static struct kobject *e404_kobj;
 
 bool e404_comm_blocked(const char *comm)
 {
+    unsigned long flags;
     int i;
+    bool match = false;
 
+    read_lock_irqsave(&e404_blocklist_lock, flags);
     for (i = 0; i < blocked_cnt; i++) {
         if (!strncmp(comm,
                      blocked[i],
-                     blocked_len[i]))
-            return true;
+                     blocked_len[i])) {
+            match = true;
+            break;
+        }
     }
+    read_unlock_irqrestore(&e404_blocklist_lock, flags);
 
-    return false;
+    return match;
 }
 EXPORT_SYMBOL_GPL(e404_comm_blocked);
 
 static void e404_rebuild_blocklist(char *buf)
 {
+    unsigned long flags;
     char *p = buf;
     char *token;
+    int new_cnt = 0;
+    u8 new_len[E404_MAX_BLOCKED];
+    char new_blocked[E404_MAX_BLOCKED][TASK_COMM_LEN];
 
-    blocked_cnt = 0;
     while ((token = strsep(&p, ",")) &&
-           blocked_cnt < E404_MAX_BLOCKED) {
+           new_cnt < E404_MAX_BLOCKED) {
 
         if (!*token)
             continue;
 
-        strscpy(blocked[blocked_cnt],
+        strscpy(new_blocked[new_cnt],
                 token,
                 TASK_COMM_LEN);
 
-        blocked_len[blocked_cnt] =
-            strlen(blocked[blocked_cnt]);
+        new_len[new_cnt] =
+            strlen(new_blocked[new_cnt]);
 
-        pr_alert("E404: blocking '%s'\n", blocked[blocked_cnt]);
-        blocked_cnt++;
+        pr_info("E404: blocking '%s'\n", new_blocked[new_cnt]);
+        new_cnt++;
     }
-    pr_alert("E404: total blocked apps = %d\n", blocked_cnt);
+
+    write_lock_irqsave(&e404_blocklist_lock, flags);
+    memcpy(blocked, new_blocked, sizeof(blocked));
+    memcpy(blocked_len, new_len, sizeof(blocked_len));
+    blocked_cnt = new_cnt;
+    write_unlock_irqrestore(&e404_blocklist_lock, flags);
+
+    pr_info("E404: total blocked apps = %d\n", new_cnt);
 }
 
 static ssize_t bg_blocklist_show(struct kobject *kobj,
                                  struct kobj_attribute *attr, char *buf)
 {
-    return scnprintf(buf, PAGE_SIZE, "%s\n",
-                     e404_data.bg_blocklist);
+    unsigned long flags;
+    ssize_t ret;
+
+    read_lock_irqsave(&e404_blocklist_lock, flags);
+    ret = scnprintf(buf, PAGE_SIZE, "%s\n",
+                    e404_data.bg_blocklist);
+    read_unlock_irqrestore(&e404_blocklist_lock, flags);
+
+    return ret;
 }
 
 static ssize_t bg_blocklist_store(struct kobject *kobj,
                                   struct kobj_attribute *attr,
                                   const char *buf, size_t count)
 {
+    unsigned long flags;
     char tmp[E404_BLOCKLIST_STRLEN];
 
     strscpy(tmp, buf, sizeof(tmp));
     strreplace(tmp, '\n', '\0');
+
+    write_lock_irqsave(&e404_blocklist_lock, flags);
     strscpy(e404_data.bg_blocklist,
             tmp,
             sizeof(e404_data.bg_blocklist));
+    write_unlock_irqrestore(&e404_blocklist_lock, flags);
 
     e404_rebuild_blocklist(tmp);
 
@@ -80,29 +109,30 @@ static ssize_t bg_blocklist_store(struct kobject *kobj,
 }
 
 static struct kobj_attribute bg_blocklist_attr =
-    __ATTR(bg_blocklist, 0664, bg_blocklist_show, bg_blocklist_store);
+    __ATTR(bg_blocklist, 0644, bg_blocklist_show, bg_blocklist_store);
 
 #define E404_ATTR_RO(name) \
 static ssize_t name##_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) { \
-    return sprintf(buf, "%d\n", e404_data.name); \
+    return scnprintf(buf, PAGE_SIZE, "%d\n", READ_ONCE(e404_data.name)); \
 } \
 static struct kobj_attribute name##_attr = __ATTR(name, 0444, name##_show, NULL);
 
 #define E404_ATTR_RW(name) \
 static ssize_t name##_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) { \
-    return sprintf(buf, "%d\n", e404_data.name); \
+    return scnprintf(buf, PAGE_SIZE, "%d\n", READ_ONCE(e404_data.name)); \
 } \
 static ssize_t name##_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count) { \
     int ret, val, old_val; \
     ret = kstrtoint(buf, 10, &val); \
     if (ret) return ret; \
-    old_val = e404_data.name; \
-    e404_data.name = val; \
-    pr_alert("E404: %s changed from %d to %d\n", #name, old_val, val); \
+    if (val != 0 && val != 1) return -EINVAL; \
+    old_val = READ_ONCE(e404_data.name); \
+    WRITE_ONCE(e404_data.name, val); \
+    pr_info("E404: %s changed from %d to %d\n", #name, old_val, val); \
     sysfs_notify(e404_kobj, NULL, #name); \
     return count; \
 } \
-static struct kobj_attribute name##_attr = __ATTR(name, 0664, name##_show, name##_store);
+static struct kobj_attribute name##_attr = __ATTR(name, 0644, name##_show, name##_store);
 
 E404_ATTR_RW(kgsl_skip_zeroing);
 E404_ATTR_RW(file_sync);

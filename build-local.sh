@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -eo pipefail
 
 SECONDS=0 # builtin bash timer
 
@@ -82,7 +83,7 @@ case "$add_choice" in
         ZIPNAME="not-ksu-$ZIPNAME"
         EXTRA_CONFIG="vendor/not/ksu.config vendor/not/localversion.config"
         ;;
-    ksu)
+    ksu+permissive)
         ZIPNAME="not-ksu-permissive-$ZIPNAME"
         EXTRA_CONFIG="vendor/not/ksu.config vendor/not/localversion.config vendor/not/permissive.config"
         ;;

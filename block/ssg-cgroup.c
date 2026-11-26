@@ -124,11 +124,16 @@ static void ssg_blkcg_pd_init(struct blkg_policy_data *pd)
 static void ssg_blkcg_pd_online(struct blkg_policy_data *pd)
 {
 	struct ssg_blkg *ssg_blkg = PD_TO_SSG_BLKG(pd);
-	struct blkcg_gq *blkg = pd->blkg;
-	struct ssg_blkcg *ssg_blkcg = BLKCG_TO_SSG_BLKCG(blkg->blkcg);
+	struct blkcg_gq *blkg;
+	struct ssg_blkcg *ssg_blkcg;
 	char path[64];
 
-	if (!ssg_blkg || !ssg_blkcg)
+	if (!ssg_blkg || !pd->blkg || !pd->blkg->blkcg)
+		return;
+
+	blkg = pd->blkg;
+	ssg_blkcg = BLKCG_TO_SSG_BLKCG(blkg->blkcg);
+	if (!ssg_blkcg || ssg_blkcg->max_available_ratio != 25)
 		return;
 
 	if (cgroup_path(blkg->blkcg->css.cgroup, path, sizeof(path)) < 0)
@@ -141,8 +146,11 @@ static void ssg_blkcg_pd_online(struct blkg_policy_data *pd)
 	else
 		return;
 
-	ssg_blkcg_set_shallow_depth(ssg_blkcg, ssg_blkg,
-			blkg->q->queue_hw_ctx[0]->sched_tags);
+	if (blkg->q && blkg->q->nr_hw_queues &&
+	    blkg->q->queue_hw_ctx[0] &&
+	    blkg->q->queue_hw_ctx[0]->sched_tags)
+		ssg_blkcg_set_shallow_depth(ssg_blkcg, ssg_blkg,
+				blkg->q->queue_hw_ctx[0]->sched_tags);
 }
 
 static void ssg_blkcg_pd_free(struct blkg_policy_data *pd)
@@ -275,7 +283,6 @@ static struct blkcg_policy ssg_blkcg_policy = {
 
 	.cpd_alloc_fn = ssg_blkcg_cpd_alloc,
 	.cpd_init_fn = ssg_blkcg_cpd_init,
-	.pd_online_fn = ssg_blkcg_pd_online,
 	.cpd_free_fn = ssg_blkcg_cpd_free,
 
 	.pd_alloc_fn = ssg_blkcg_pd_alloc,
