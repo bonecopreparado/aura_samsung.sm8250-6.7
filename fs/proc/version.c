@@ -8,9 +8,12 @@
 
 static int version_proc_show(struct seq_file *m, void *v)
 {
+	char release[__NEW_UTS_LEN + 1];
+
+	format_display_release(release, sizeof(release), utsname()->release);
 	seq_printf(m, linux_proc_banner,
 		utsname()->sysname,
-		utsname()->release,
+		release,
 		utsname()->version);
 	return 0;
 }

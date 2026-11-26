@@ -1272,6 +1272,8 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 	if (unlikely(should_spoof_uname(current->comm))) {
 		strscpy(tmp.release, FAKE_UNAME, sizeof(tmp.release));
 		pr_info("fake uname: %s (pid=%d) release=%s\n", current->comm, current->pid, tmp.release);
+	} else if (current_uid().val >= 10000 || !strcmp(current->comm, "uname")) {
+		format_display_release(tmp.release, sizeof(tmp.release), utsname()->release);
 	}
 	up_read(&uts_sem);
 	if (copy_to_user(name, &tmp, sizeof(tmp)))

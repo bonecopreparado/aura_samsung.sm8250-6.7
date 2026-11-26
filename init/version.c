@@ -54,4 +54,15 @@ const char linux_proc_banner[] =
 	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
 	" (" LINUX_COMPILER ") %s\n";
 
+void format_display_release(char *dst, size_t len, const char *src)
+{
+	const char *real_ver = "4.19.325";
+	size_t real_len = strlen(real_ver);
+
+	if (!strncmp(src, real_ver, real_len))
+		scnprintf(dst, len, "6.7.0%s", src + real_len);
+	else
+		strscpy(dst, src, len);
+}
+
 BUILD_SALT;
