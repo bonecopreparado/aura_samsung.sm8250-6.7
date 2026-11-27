@@ -15,7 +15,7 @@ DEVICE="${DEVICE:-r8q}"
 AK3_REPO="https://github.com/Lazy-Encrypted/AnyKernel3"
 AK3_BRANCH="$DEVICE"
 
-ZIPNAME="not-$(date '+%Y%m%d').zip"
+ZIPNAME="aurakernel-$(date '+%Y%m%d').zip"
 TC_DIR="$(pwd)/tc/clang"
 DEFCONFIG="vendor/kona-perf_defconfig vendor/samsung/kona-sec-common.config vendor/samsung/$DEVICE.config vendor/not/ksu.config vendor/not/localversion.config"
 
@@ -102,6 +102,23 @@ fi
 rm -rf AnyKernel3
 echo "[*] Cloning AnyKernel3 for $DEVICE"
 git clone -q -b "$AK3_BRANCH" "$AK3_REPO" AnyKernel3 || exit 1
+
+cat <<'EOF' > AnyKernel3/banner
+=============================
+      A U R A K E R N E L
+=============================
+EOF
+
+sed -i 's|^kernel\.string=.*|kernel.string=aurakernel v6.7 \| forked by noxy|' AnyKernel3/anykernel.sh
+
+cat <<EOF > AnyKernel3/version
+ Kernel  : aurakernel
+ Versao  : 6.7
+ Autor   : boneco preparado
+ Forked  : by noxy
+ Device  : $DEVICE
+-----------------------------
+EOF
 
 echo -e "Preparing zip...\n"
 

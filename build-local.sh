@@ -76,15 +76,15 @@ COMMON_DEFCONFIG="vendor/samsung/kona-sec-common.config"
 # Additionals configurations switch
 case "$add_choice" in
     stock)
-        ZIPNAME="not-$ZIPNAME"
+        ZIPNAME="aurakernel-$ZIPNAME"
         EXTRA_CONFIG="vendor/not/localversion.config"
         ;;
     ksu)
-        ZIPNAME="not-ksu-$ZIPNAME"
+        ZIPNAME="aurakernel-ksu-$ZIPNAME"
         EXTRA_CONFIG="vendor/not/ksu.config vendor/not/localversion.config"
         ;;
     ksu+permissive)
-        ZIPNAME="not-ksu-permissive-$ZIPNAME"
+        ZIPNAME="aurakernel-ksu-permissive-$ZIPNAME"
         EXTRA_CONFIG="vendor/not/ksu.config vendor/not/localversion.config vendor/not/permissive.config"
         ;;
 esac
@@ -93,7 +93,7 @@ DEFCONFIG="$PLATFORM_DEFCONFIG $COMMON_DEFCONFIG $PROJECT_CONFIG $EXTRA_CONFIG"
 
 
 # Paths
-AK3_REPO="https://github.com/notkernel-oss/AnyKernel3"
+AK3_REPO="https://github.com/Lazy-Encrypted/AnyKernel3"
 AK3_BRANCH="$MODEL"
 
 TC_DIR="$(pwd)/tc/clang"
@@ -187,6 +187,23 @@ echo -e "${GREEN}DTB + DTBO ready!${NC}"
 rm -rf AnyKernel3
 echo "[*] Cloning AnyKernel3..."
 git clone -q -b "$AK3_BRANCH" "$AK3_REPO" AnyKernel3 || exit 1
+
+cat <<'EOF' > AnyKernel3/banner
+=============================
+      A U R A K E R N E L
+=============================
+EOF
+
+sed -i 's|^kernel\.string=.*|kernel.string=aurakernel v6.7 \| forked by noxy|' AnyKernel3/anykernel.sh
+
+cat <<EOF > AnyKernel3/version
+ Kernel  : aurakernel
+ Versao  : 6.7
+ Autor   : boneco preparado
+ Forked  : by noxy
+ Device  : $MODEL
+-----------------------------
+EOF
 
 cp "$BOOT_DIR/dtbo.img" AnyKernel3/
 cp "$BOOT_DIR/Image.gz" AnyKernel3/
