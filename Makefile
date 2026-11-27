@@ -720,16 +720,16 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS   += -Os
 else
-KBUILD_CFLAGS   += -O3
+KBUILD_CFLAGS   += -O2
 endif
 
 ifneq ($(filter y, \
 	$(CONFIG_ARCH_KONA) \
 	$(CONFIG_ARCH_LITO) \
 	$(CONFIG_ARCH_LAGOON)),)
-KBUILD_CFLAGS   += $(call cc-option,-mcpu=cortex-a55)
-KBUILD_AFLAGS   += $(call cc-option,-mcpu=cortex-a55)
-KBUILD_LDFLAGS  += $(call cc-option,-mllvm -mcpu=cortex-a55)
+KBUILD_CFLAGS   += $(call cc-option,-march=armv8.2-a+lse)
+KBUILD_CFLAGS   += $(call cc-option,-mtune=cortex-a77)
+KBUILD_AFLAGS   += $(call cc-option,-march=armv8.2-a+lse)
 else ifneq ($(filter y, \
 	$(CONFIG_ARCH_BENGAL) \
 	$(CONFIG_ARCH_KHAJE) \
@@ -746,14 +746,8 @@ KBUILD_AFLAGS   += $(call cc-option,-mcpu=cortex-a53)
 KBUILD_LDFLAGS  += $(call cc-option,-mllvm -mcpu=cortex-a53)
 endif
 
-# Enable fast FMA optimizations
-KBUILD_CFLAGS += $(call cc-option,-ffp-contract=fast)
-
 # Enable hot cold split optimization
 KBUILD_CFLAGS += $(call cc-option,-mllvm -hot-cold-split=true)
-
-# Enable MLGO for register allocation
-KBUILD_LDFLAGS += $(call cc-option,-mllvm -regalloc-enable-advisor=default)
 
 ifdef CONFIG_CC_WERROR
 KBUILD_CFLAGS  += -Werror
